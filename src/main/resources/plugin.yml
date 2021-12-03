@@ -3,4 +3,5 @@ main: org.dynmap.griefprevention.DynmapGriefPreventionPlugin
 version: "${project.version}"
 author: mikeprimm
 depend: [ dynmap, GriefPrevention ]
-
+api-version: '1.13'
+website: 'https://github.com/stumper66/Dynmap-GriefPrevention'

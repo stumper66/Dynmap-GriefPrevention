@@ -29,6 +29,7 @@ import org.dynmap.DynmapAPI;
 import org.dynmap.markers.AreaMarker;
 import org.dynmap.markers.MarkerAPI;
 import org.dynmap.markers.MarkerSet;
+import org.jetbrains.annotations.NotNull;
 
 public class DynmapGriefPreventionPlugin extends JavaPlugin {
     private static Logger log;
@@ -40,7 +41,6 @@ public class DynmapGriefPreventionPlugin extends JavaPlugin {
     MarkerAPI markerapi;
     GriefPrevention gp;
     
-    FileConfiguration cfg;
     MarkerSet set;
     long updperiod;
     boolean use3d;
@@ -66,7 +66,7 @@ public class DynmapGriefPreventionPlugin extends JavaPlugin {
         double fillopacity;
         String label;
 
-        AreaStyle(FileConfiguration cfg, String path, AreaStyle def) {
+        AreaStyle(@NotNull FileConfiguration cfg, String path, @NotNull AreaStyle def) {
             strokecolor = cfg.getString(path+".strokeColor", def.strokecolor);
             strokeopacity = cfg.getDouble(path+".strokeOpacity", def.strokeopacity);
             strokeweight = cfg.getInt(path+".strokeWeight", def.strokeweight);
@@ -75,7 +75,7 @@ public class DynmapGriefPreventionPlugin extends JavaPlugin {
             label = cfg.getString(path+".label", null);
         }
 
-        AreaStyle(FileConfiguration cfg, String path) {
+        AreaStyle(@NotNull FileConfiguration cfg, String path) {
             strokecolor = cfg.getString(path+".strokeColor", "#FF0000");
             strokeopacity = cfg.getDouble(path+".strokeOpacity", 0.8);
             strokeweight = cfg.getInt(path+".strokeWeight", 3);
@@ -105,9 +105,10 @@ public class DynmapGriefPreventionPlugin extends JavaPlugin {
         }
     }
     
-    private Map<String, AreaMarker> resareas = new HashMap<String, AreaMarker>();
+    private Map<String, AreaMarker> resareas = new HashMap<>();
 
-    private String formatInfoWindow(Claim claim, AreaMarker m) {
+    @NotNull
+    private String formatInfoWindow(@NotNull Claim claim) {
         String v;
         if(claim.isAdminClaim())
             v = "<div class=\"regioninfo\">"+admininfowindow+"</div>";
@@ -115,58 +116,59 @@ public class DynmapGriefPreventionPlugin extends JavaPlugin {
             v = "<div class=\"regioninfo\">"+infowindow+"</div>";
         v = v.replace("%owner%", claim.isAdminClaim()?ADMIN_ID:claim.getOwnerName());
         v = v.replace("%area%", Integer.toString(claim.getArea()));
-        ArrayList<String> builders = new ArrayList<String>();
-        ArrayList<String> containers = new ArrayList<String>();
-        ArrayList<String> accessors = new ArrayList<String>();
-        ArrayList<String> managers = new ArrayList<String>();
+        ArrayList<String> builders = new ArrayList<>();
+        ArrayList<String> containers = new ArrayList<>();
+        ArrayList<String> accessors = new ArrayList<>();
+        ArrayList<String> managers = new ArrayList<>();
         claim.getPermissions(builders, containers, accessors, managers);
         /* Build builders list */
-        String accum = "";
+        final StringBuilder accum = new StringBuilder();
         for(int i = 0; i < builders.size(); i++) {
-            if(i > 0) accum += ", ";
-            accum += builders.get(i);
+            if(i > 0) accum.append(", ");
+            accum.append(builders.get(i));
         }
-        v = v.replace("%builders%", accum);
+        v = v.replace("%builders%", accum.toString());
         /* Build containers list */
-        accum = "";
+        accum.setLength(0);
         for(int i = 0; i < containers.size(); i++) {
-            if(i > 0) accum += ", ";
-            accum += containers.get(i);
+            if(i > 0) accum.append(", ");
+            accum.append(containers.get(i));
         }
-        v = v.replace("%containers%", accum);
+        v = v.replace("%containers%", accum.toString());
         /* Build accessors list */
-        accum = "";
+        accum.setLength(1);
         for(int i = 0; i < accessors.size(); i++) {
-            if(i > 0) accum += ", ";
-            accum += accessors.get(i);
+            if(i > 0) accum.append(", ");
+            accum.append(accessors.get(i));
         }
-        v = v.replace("%accessors%", accum);
+        v = v.replace("%accessors%", accum.toString());
         /* Build managers list */
-        accum = "";
+        accum.setLength(1);
         for(int i = 0; i < managers.size(); i++) {
-            if(i > 0) accum += ", ";
-            accum += managers.get(i);
+            if(i > 0) accum.append(", ");
+            accum.append(managers.get(i));
         }
-        v = v.replace("%managers%", accum);
+        v = v.replace("%managers%", accum.toString());
         
         return v;
     }
     
     private boolean isVisible(String owner, String worldname) {
         if((visible != null) && (visible.size() > 0)) {
-            if((visible.contains(owner) == false) && (visible.contains("world:" + worldname) == false) &&
-                    (visible.contains(worldname + "/" + owner) == false)) {
+            if((!visible.contains(owner)) && (!visible.contains("world:" + worldname)) &&
+                    (!visible.contains(worldname + "/" + owner))) {
                 return false;
             }
         }
+
         if((hidden != null) && (hidden.size() > 0)) {
-            if(hidden.contains(owner) || hidden.contains("world:" + worldname) || hidden.contains(worldname + "/" + owner))
-                return false;
+            return !hidden.contains(owner) && !hidden.contains("world:" + worldname) && !hidden.contains(worldname + "/" + owner);
         }
+
         return true;
     }
     
-    private void addStyle(String owner, String worldid, AreaMarker m, Claim claim) {
+    private void addStyle(String owner, AreaMarker m) {
         AreaStyle as = null;
         
         if(!ownerstyle.isEmpty()) {
@@ -180,8 +182,7 @@ public class DynmapGriefPreventionPlugin extends JavaPlugin {
         try {
             sc = Integer.parseInt(as.strokecolor.substring(1), 16);
             fc = Integer.parseInt(as.fillcolor.substring(1), 16);
-        } catch (NumberFormatException nfx) {
-        }
+        } catch (NumberFormatException ignored) { }
         m.setLineStyle(as.strokeweight, as.strokeopacity, sc);
         m.setFillStyle(as.fillopacity, fc);
         if(as.label != null) {
@@ -190,9 +191,9 @@ public class DynmapGriefPreventionPlugin extends JavaPlugin {
     }
     
     /* Handle specific claim */
-    private void handleClaim(int index, Claim claim, Map<String, AreaMarker> newmap) {
-        double[] x = null;
-        double[] z = null;
+    private void handleClaim(@NotNull Claim claim, Map<String, AreaMarker> newmap) {
+        double[] x;
+        double[] z;
         Location l0 = claim.getLesserBoundaryCorner();
         Location l1 = claim.getGreaterBoundaryCorner();
         if(l0 == null)
@@ -224,10 +225,10 @@ public class DynmapGriefPreventionPlugin extends JavaPlugin {
                 m.setRangeY(l1.getY()+1.0, l0.getY());
             }            
             /* Set line and fill properties */
-            addStyle(owner, wname, m, claim);
+            addStyle(owner, m);
 
             /* Build popup */
-            String desc = formatInfoWindow(claim, m);
+            String desc = formatInfoWindow(claim);
 
             m.setDescription(desc); /* Set popup */
 
@@ -239,9 +240,9 @@ public class DynmapGriefPreventionPlugin extends JavaPlugin {
     /* Update grief prevention region information */
     @SuppressWarnings("unchecked")
     private void updateClaims() {
-        Map<String,AreaMarker> newmap = new HashMap<String,AreaMarker>(); /* Build new map */
+        final Map<String,AreaMarker> newmap = new HashMap<>(); /* Build new map */
  
-        DataStore ds = gp.dataStore;
+        final DataStore ds = gp.dataStore;
         
         ArrayList<Claim> claims = null;
         try {
@@ -249,39 +250,31 @@ public class DynmapGriefPreventionPlugin extends JavaPlugin {
             fld.setAccessible(true);
             Object o = fld.get(ds);
             claims = (ArrayList<Claim>)o;
-        } catch (NoSuchFieldException e) {
-        } catch (IllegalArgumentException e) {
-        } catch (IllegalAccessException e) {
-        }
+        } catch (NoSuchFieldException | IllegalArgumentException | IllegalAccessException ignored) { }
         /* If claims, process them */
         if(claims != null) {
-            int sz = claims.size();
-            for(int i = 0; i < sz; i++) {
-                Claim claim = claims.get(i);
-                handleClaim(i, claim, newmap);
-            }
-            int idx = sz;
-            for(int i = 0; i < sz; i++) {
-                Claim claim = claims.get(i);
-                if((claim.children != null) && (claim.children.size() > 0)) {
-                    for(int j = 0; j < claim.children.size(); j++) {
-                        handleClaim(idx, claim.children.get(j), newmap);
-                        idx++;
+            for (final Claim claim : claims)
+                handleClaim(claim, newmap);
+
+            for (final Claim claim : claims) {
+                if ((claim.children != null) && (claim.children.size() > 0)) {
+                    for (int j = 0; j < claim.children.size(); j++) {
+                        handleClaim(claim.children.get(j), newmap);
                     }
                 }
             }
         }
         /* Now, review old map - anything left is gone */
-        for(AreaMarker oldm : resareas.values()) {
+        for(final AreaMarker oldm : resareas.values())
             oldm.deleteMarker();
-        }
+
         /* And replace with new map */
         resareas = newmap;
     }
 
     private class OurServerListener implements Listener {
         @EventHandler(priority=EventPriority.MONITOR)
-        public void onPluginEnable(PluginEnableEvent event) {
+        public void onPluginEnable(@NotNull PluginEnableEvent event) {
             Plugin p = event.getPlugin();
             String name = p.getDescription().getName();
             if(name.equals("dynmap") || name.equals("GriefPrevention")) {
@@ -317,8 +310,7 @@ public class DynmapGriefPreventionPlugin extends JavaPlugin {
         try {
             MetricsLite ml = new MetricsLite(this);
             ml.start();
-        } catch (IOException iox) {
-        }
+        } catch (IOException ignored) { }
     }
     private boolean reload = false;
     /*
@@ -380,7 +372,7 @@ public class DynmapGriefPreventionPlugin extends JavaPlugin {
 
         /* Get style information */
         defstyle = new AreaStyle(cfg, "regionstyle");
-        ownerstyle = new HashMap<String, AreaStyle>();
+        ownerstyle = new HashMap<>();
         ConfigurationSection sect = cfg.getConfigurationSection("ownerstyle");
         if(sect != null) {
             Set<String> ids = sect.getKeys(false);
@@ -391,17 +383,17 @@ public class DynmapGriefPreventionPlugin extends JavaPlugin {
         }
         List<String> vis = cfg.getStringList("visibleregions");
         if(vis != null) {
-            visible = new HashSet<String>(vis);
+            visible = new HashSet<>(vis);
         }
         List<String> hid = cfg.getStringList("hiddenregions");
         if(hid != null) {
-            hidden = new HashSet<String>(hid);
+            hidden = new HashSet<>(hid);
         }
 
         /* Set up update job - based on periond */
         int per = cfg.getInt("update.period", 300);
         if(per < 15) per = 15;
-        updperiod = (long)(per*20);
+        updperiod = per * 20L;
         stop = false;
         
         getServer().getScheduler().scheduleSyncDelayedTask(this, new GriefPreventionUpdate(), 40);   /* First time is 2 seconds */
