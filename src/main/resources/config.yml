@@ -1,6 +1,7 @@
 # Dynmap-GriefPrevention configuration
-#
+
 update:
+
   # Seconds between checks for claim updates
   period: 300
 
@@ -17,7 +18,6 @@ layer:
 use3dregions: false
 
 # Format for popup - substitute values for macros
-# 
 infowindow: '<div class=\"infowindow\">Claim Owner: <span style=\"font-weight:bold;\">%owner%</span><br/>Permission Trust: <span style=\"font-weight:bold;\">%managers%</span><br/>Trust: <span style=\"font-weight:bold;\">%builders%</span><br/>Container Trust: <span style=\"font-weight:bold;\">%containers%</span><br/>Access Trust: <span style=\"font-weight:bold;\">%accessors%</span></div>'
 
 adminclaiminfowindow: '<div class=\"infowindow\"><span style=\"font-weight:bold;\">Administrator Claim</span><br/>Permission Trust: <span style=\"font-weight:bold;\">%managers%</span><br/>Trust: <span style=\"font-weight:bold;\">%builders%</span><br/>Container Trust: <span style=\"font-weight:bold;\">%containers%</span><br/>Access Trust: <span style=\"font-weight:bold;\">%accessors%</span></div>'

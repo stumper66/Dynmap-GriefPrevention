@@ -1,6 +1,5 @@
 package org.dynmap.griefprevention;
 
-import java.io.IOException;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -8,23 +7,15 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-
 import me.ryanhamshire.GriefPrevention.Claim;
 import me.ryanhamshire.GriefPrevention.DataStore;
 import me.ryanhamshire.GriefPrevention.GriefPrevention;
-
 import org.bukkit.Location;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
-import org.bukkit.event.EventHandler;
-import org.bukkit.event.EventPriority;
-import org.bukkit.event.Listener;
-import org.bukkit.event.server.PluginEnableEvent;
-import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.plugin.Plugin;
-import org.bukkit.plugin.PluginManager;
+import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.scheduler.BukkitRunnable;
 import org.dynmap.DynmapAPI;
 import org.dynmap.markers.AreaMarker;
 import org.dynmap.markers.MarkerAPI;
@@ -32,17 +23,17 @@ import org.dynmap.markers.MarkerSet;
 import org.jetbrains.annotations.NotNull;
 
 public class DynmapGriefPreventionPlugin extends JavaPlugin {
-    private static Logger log;
+
+    private static final long TWO_SECONDS_IN_TICKS = 20L * 2L;
     private static final String DEF_INFOWINDOW = "div class=\"infowindow\">Claim Owner: <span style=\"font-weight:bold;\">%owner%</span><br/>Permission Trust: <span style=\"font-weight:bold;\">%managers%</span><br/>Trust: <span style=\"font-weight:bold;\">%builders%</span><br/>Container Trust: <span style=\"font-weight:bold;\">%containers%</span><br/>Access Trust: <span style=\"font-weight:bold;\">%accessors%</span></div>";
     private static final String DEF_ADMININFOWINDOW = "<div class=\"infowindow\"><span style=\"font-weight:bold;\">Administrator Claim</span><br/>Permission Trust: <span style=\"font-weight:bold;\">%managers%</span><br/>Trust: <span style=\"font-weight:bold;\">%builders%</span><br/>Container Trust: <span style=\"font-weight:bold;\">%containers%</span><br/>Access Trust: <span style=\"font-weight:bold;\">%accessors%</span></div>";
     private static final String ADMIN_ID = "administrator";
     Plugin dynmap;
     DynmapAPI api;
     MarkerAPI markerapi;
-    GriefPrevention gp;
+    GriefPrevention griefPrevention;
     
     MarkerSet set;
-    long updperiod;
     boolean use3d;
     String infowindow;
     String admininfowindow;
@@ -50,13 +41,7 @@ public class DynmapGriefPreventionPlugin extends JavaPlugin {
     Map<String, AreaStyle> ownerstyle;
     Set<String> visible;
     Set<String> hidden;
-    boolean stop; 
     int maxdepth;
-
-    @Override
-    public void onLoad() {
-        log = this.getLogger();
-    }
     
     private static class AreaStyle {
         String strokecolor;
@@ -81,27 +66,6 @@ public class DynmapGriefPreventionPlugin extends JavaPlugin {
             strokeweight = cfg.getInt(path+".strokeWeight", 3);
             fillcolor = cfg.getString(path+".fillColor", "#FF0000");
             fillopacity = cfg.getDouble(path+".fillOpacity", 0.35);
-        }
-    }
-    
-    public static void info(String msg) {
-        log.log(Level.INFO, msg);
-    }
-    public static void severe(String msg) {
-        log.log(Level.SEVERE, msg);
-    }
-
-    private class GriefPreventionUpdate implements Runnable {
-        boolean repeat = true;
-        
-        public void run() {
-            if(!stop) {
-                //doUpdate = false;
-                updateClaims();
-                if (repeat) {
-                    getServer().getScheduler().scheduleSyncDelayedTask(DynmapGriefPreventionPlugin.this, new GriefPreventionUpdate(), updperiod);
-                }
-            }
         }
     }
     
@@ -242,7 +206,7 @@ public class DynmapGriefPreventionPlugin extends JavaPlugin {
     private void updateClaims() {
         final Map<String,AreaMarker> newmap = new HashMap<>(); /* Build new map */
  
-        final DataStore ds = gp.dataStore;
+        final DataStore ds = griefPrevention.dataStore;
         
         ArrayList<Claim> claims = null;
         try {
@@ -271,69 +235,43 @@ public class DynmapGriefPreventionPlugin extends JavaPlugin {
         /* And replace with new map */
         resareas = newmap;
     }
-
-    private class OurServerListener implements Listener {
-        @EventHandler(priority=EventPriority.MONITOR)
-        public void onPluginEnable(@NotNull PluginEnableEvent event) {
-            Plugin p = event.getPlugin();
-            String name = p.getDescription().getName();
-            if(name.equals("dynmap") || name.equals("GriefPrevention")) {
-                if(dynmap.isEnabled() && gp.isEnabled())
-                    activate();
-            }
-        }
-    }
     
     public void onEnable() {
-        info("initializing");
-        PluginManager pm = getServer().getPluginManager();
-        /* Get dynmap */
-        dynmap = pm.getPlugin("dynmap");
-        if(dynmap == null) {
-            severe("Cannot find dynmap!");
-            return;
-        }
-        api = (DynmapAPI)dynmap; /* Get API */
-        /* Get GriefPrevention */
-        Plugin p = pm.getPlugin("GriefPrevention");
-        if(p == null) {
-            severe("Cannot find GriefPrevention!");
-            return;
-        }
-        gp = (GriefPrevention)p;
 
-        getServer().getPluginManager().registerEvents(new OurServerListener(), this);        
-        /* If both enabled, activate */
-        if(dynmap.isEnabled() && gp.isEnabled())
-            activate();
-        
-        try {
-            MetricsLite ml = new MetricsLite(this);
-            ml.start();
-        } catch (IOException ignored) { }
-    }
-    private boolean reload = false;
-    /*
-    private boolean doUpdate = false;
-    
-    private class GPListener implements Listener {
-        private void doUpdate() {
-            if (!doUpdate) {
-                doUpdate = true;
-                GriefPreventionUpdate gp = new GriefPreventionUpdate();
-                gp.repeat = false;
-                getServer().getScheduler().scheduleSyncDelayedTask(DynmapGriefPreventionPlugin.this, gp, 5 * 20);
-            }
+        /* Get dynmap */
+        dynmap = getServer().getPluginManager().getPlugin("dynmap");
+        if(dynmap == null || !dynmap.isEnabled()) {
+            getLogger().severe("Unable to find Dynmap! The plugin will shut down.");
+            disablePlugin();
+            return;
         }
-    }*/
+        api = (DynmapAPI) dynmap;
+
+        /* Get GriefPrevention */
+        var gpPlugin = getServer().getPluginManager().getPlugin("GriefPrevention");
+        if(gpPlugin == null || !gpPlugin.isEnabled()) {
+            getLogger().severe("Unable to find GriefPrevention! The plugin will shut down.");
+            disablePlugin();
+            return;
+        }
+        griefPrevention = (GriefPrevention) gpPlugin;
+
+        activate();
+
+        getLogger().info("Enabled successfully.");
+    }
+
+    private boolean reload = false;
     
     private void activate() {
-        /* Now, get markers API */
+        /* Get markers API */
         markerapi = api.getMarkerAPI();
         if(markerapi == null) {
-            severe("Error loading dynmap marker API!");
+            getLogger().severe("Unable to load dynmap marker API!");
+            disablePlugin();
             return;
         }
+
         /* Load configuration */
         if(reload) {
             reloadConfig();
@@ -342,74 +280,100 @@ public class DynmapGriefPreventionPlugin extends JavaPlugin {
                 set = null;
             }
             resareas.clear();
-        }
-        else {
+        } else {
             reload = true;
         }
-        FileConfiguration cfg = getConfig();
-        cfg.options().copyDefaults(true);   /* Load defaults, if needed */
-        this.saveConfig();  /* Save updates, if needed */
+
+        getConfig().options().copyDefaults(true);   /* Load defaults, if needed */
+        saveConfig();  /* Save updates, if needed */
         
-        /* Now, add marker set for mobs (make it transient) */
+        /* Add marker set for mobs (make it transient) */
         set = markerapi.getMarkerSet("griefprevention.markerset");
-        if(set == null)
-            set = markerapi.createMarkerSet("griefprevention.markerset", cfg.getString("layer.name", "GriefPrevention"), null, false);
-        else
-            set.setMarkerSetLabel(cfg.getString("layer.name", "GriefPrevention"));
         if(set == null) {
-            severe("Error creating marker set");
+            set = markerapi.createMarkerSet(
+                "griefprevention.markerset",
+                getConfig().getString("layer.name", "GriefPrevention"),
+                null,
+                false);
+        } else {
+            set.setMarkerSetLabel(getConfig().getString("layer.name", "GriefPrevention"));
+        }
+
+        if(set == null) {
+            getLogger().severe("Unable to create marker set!");
+            disablePlugin();
             return;
         }
-        int minzoom = cfg.getInt("layer.minzoom", 0);
+
+        int minzoom = getConfig().getInt("layer.minzoom", 0);
         if(minzoom > 0)
             set.setMinZoom(minzoom);
-        set.setLayerPriority(cfg.getInt("layer.layerprio", 10));
-        set.setHideByDefault(cfg.getBoolean("layer.hidebydefault", false));
-        use3d = cfg.getBoolean("use3dregions", false);
-        infowindow = cfg.getString("infowindow", DEF_INFOWINDOW);
-        admininfowindow = cfg.getString("adminclaiminfowindow", DEF_ADMININFOWINDOW);
-        maxdepth = cfg.getInt("maxdepth", 16);
+        set.setLayerPriority(getConfig().getInt("layer.layerprio", 10));
+        set.setHideByDefault(getConfig().getBoolean("layer.hidebydefault", false));
+        use3d = getConfig().getBoolean("use3dregions", false);
+        infowindow = getConfig().getString("infowindow", DEF_INFOWINDOW);
+        admininfowindow = getConfig().getString("adminclaiminfowindow", DEF_ADMININFOWINDOW);
+        maxdepth = getConfig().getInt("maxdepth", 16);
 
         /* Get style information */
-        defstyle = new AreaStyle(cfg, "regionstyle");
+        defstyle = new AreaStyle(getConfig(), "regionstyle");
         ownerstyle = new HashMap<>();
-        ConfigurationSection sect = cfg.getConfigurationSection("ownerstyle");
+        ConfigurationSection sect = getConfig().getConfigurationSection("ownerstyle");
         if(sect != null) {
             Set<String> ids = sect.getKeys(false);
             
             for(String id : ids) {
-                ownerstyle.put(id.toLowerCase(), new AreaStyle(cfg, "ownerstyle." + id, defstyle));
+                ownerstyle.put(id.toLowerCase(), new AreaStyle(getConfig(), "ownerstyle." + id, defstyle));
             }
         }
-        List<String> vis = cfg.getStringList("visibleregions");
+        List<String> vis = getConfig().getStringList("visibleregions");
         if(vis != null) {
             visible = new HashSet<>(vis);
         }
-        List<String> hid = cfg.getStringList("hiddenregions");
+        List<String> hid = getConfig().getStringList("hiddenregions");
         if(hid != null) {
             hidden = new HashSet<>(hid);
         }
 
-        /* Set up update job - based on periond */
-        int per = cfg.getInt("update.period", 300);
-        if(per < 15) per = 15;
-        updperiod = per * 20L;
-        stop = false;
-        
-        getServer().getScheduler().scheduleSyncDelayedTask(this, new GriefPreventionUpdate(), 40);   /* First time is 2 seconds */
+        startUpdateTask();
 
-        //getServer().getPluginManager().registerEvents(new GPListener(), this);        
+        getLogger().info("Activated successfully.");
+    }
 
-        info("version " + this.getDescription().getVersion() + " is activated");
+    /*
+    Repeatedly calls updateClaims (with a delay of course).
+    This task cancels when onDisable() is called.
+     */
+    private void startUpdateTask() {
+        final var updatePeriod = 20L * Math.max(15L,
+            getConfig().getLong("update.period", 300L));
+
+        new BukkitRunnable() {
+            @Override
+            public void run() {
+                updateClaims();
+            }
+        }.runTaskTimer(this, TWO_SECONDS_IN_TICKS, updatePeriod);
     }
 
     public void onDisable() {
+        getLogger().info("Cancelling tasks...");
+        getServer().getScheduler().cancelTasks(this);
+
         if(set != null) {
+            getLogger().info("Deleting marker set...");
             set.deleteMarkerSet();
             set = null;
         }
+
+        getLogger().info("Clearing areas...");
         resareas.clear();
-        stop = true;
+
+        getLogger().info("Disabled successfully.");
+    }
+
+    private void disablePlugin() {
+        getServer().getPluginManager().disablePlugin(this);
     }
 
 }
