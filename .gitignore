@@ -24,3 +24,7 @@
 # Mac filesystem dust
 /.DS_Store
 .idea/dictionaries/Buffa.xml
+
+# IntelliJ
+*.iml
+.idea/
