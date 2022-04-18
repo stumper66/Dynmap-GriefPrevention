@@ -7,13 +7,16 @@ update:
 
 layer:
   name: "GriefPrevention"
+
   # Make mobs layer hidden by default
   hidebydefault: false
+
   # ordering priority in layer menu (low goes before high - default is 0)
   layerprio: 0
+
   # (optional) set minimum zoom level before layer is visible (0 = defalt, always visible)
   minzoom: 0
-  
+
 # Set true to show 3D volumes for zones  
 use3dregions: false
 
@@ -29,16 +32,16 @@ regionstyle:
   strokeWeight: 3
   fillColor: "#FF0000"
   fillOpacity: 0.35
-  
+
 # Optional list for defining the claims to be shown.  If list is non-empty, only claims matching one of the list strings are shown:
 # Values can include '<username>' (claims owned by given user), 'world:<worldid>' (all claims on a specific world),
 # '<worldid>/<username>' (claims owned by a given user on a given world).  Administrator claims are owned by 'administrator'.
-visibleregions: [ ]
-  
+visibleregions: []
+
 # Optional list for restricting the claims shown.  If list is non-empty, any claims matching one of the list strings are not shown:
 # Values can include '<username>' (claims owned by given user), 'world:<worldid>' (all claims on a specific world),
 # '<worldid>/<username>' (claims owned by a given user on a given world).  Administrator claims are owned by 'administrator'.
-hiddenregions: [ ]
+hiddenregions: []
 
 # Optional per-owner overrides for regionstyle (Administrator claims are owned by 'administrator')
 ownerstyle:
