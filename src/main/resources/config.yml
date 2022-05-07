@@ -48,4 +48,5 @@ ownerstyle:
   administrator:
     strokeColor: "#0000FF"
     fillColor: "#0000FF"
-    
+
+debug: false
