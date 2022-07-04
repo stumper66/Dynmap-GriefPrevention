@@ -2,7 +2,10 @@ package org.dynmap.griefprevention;
 
 import me.ryanhamshire.GriefPrevention.Claim;
 import me.ryanhamshire.GriefPrevention.DataStore;
+import org.bukkit.Bukkit;
 import org.bukkit.Location;
+import org.bukkit.OfflinePlayer;
+import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.dynmap.markers.AreaMarker;
 import org.jetbrains.annotations.NotNull;
@@ -13,6 +16,8 @@ import java.util.ArrayList;
 import java.util.ConcurrentModificationException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.TreeMap;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -25,9 +30,11 @@ public class UpdateProcessing {
     public UpdateProcessing(@NotNull DynmapGriefPreventionPlugin main){
         this.main = main;
         showDebug = main.getConfig().getBoolean("debug", false);
+        this.playerNameCache = new TreeMap<>();
     }
 
     private final DynmapGriefPreventionPlugin main;
+    private final Map<UUID, String> playerNameCache;
     private boolean showDebug;
 
     @Nullable ArrayList<Claim> getClaims(){
@@ -221,7 +228,8 @@ public class UpdateProcessing {
             if(i > 0) {
                 accum.append(", ");
             }
-            accum.append(builders.get(i));
+            final String playerName = resolvePlayernameFromId(builders.get(i));
+            accum.append(playerName);
         }
         v = v.replace("%builders%", accum.toString());
         /* Build containers list */
@@ -253,5 +261,29 @@ public class UpdateProcessing {
         v = v.replace("%managers%", accum.toString());
 
         return v;
+    }
+
+    @NotNull
+    private String resolvePlayernameFromId(final @NotNull String playerId){
+        final UUID id = UUID.fromString(playerId);
+        if (playerNameCache.containsKey(id)){
+            return playerNameCache.get(id);
+        }
+        else {
+            final Player player = Bukkit.getPlayer(playerId);
+            String playerName;
+            if (player != null) {
+                playerName = player.getName();
+                playerNameCache.put(id, playerName);
+            }
+            else {
+                final OfflinePlayer offlinePlayer = Bukkit.getOfflinePlayer(id);
+                playerName = offlinePlayer.getName();
+                playerNameCache.put(id, playerName);
+            }
+
+            return playerName != null ?
+                    playerName : playerId;
+        }
     }
 }
