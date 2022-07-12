@@ -22,6 +22,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.regex.Pattern;
 
 import static org.dynmap.griefprevention.DynmapGriefPreventionPlugin.ADMIN_ID;
 
@@ -31,10 +32,12 @@ public class UpdateProcessing {
         this.main = main;
         showDebug = main.getConfig().getBoolean("debug", false);
         this.playerNameCache = new TreeMap<>();
+        this.idPattern = Pattern.compile("^[0-9a-f]{8}-[0-9a-f]{4}-[0-5][0-9a-f]{3}-[089ab][0-9a-f]{3}-[0-9a-f]{12}$");
     }
 
     private final DynmapGriefPreventionPlugin main;
     private final Map<UUID, String> playerNameCache;
+    private final Pattern idPattern;
     private boolean showDebug;
 
     @Nullable ArrayList<Claim> getClaims(){
@@ -228,8 +231,11 @@ public class UpdateProcessing {
             if(i > 0) {
                 accum.append(", ");
             }
-            final String playerName = resolvePlayernameFromId(builders.get(i));
-            accum.append(playerName);
+            String claimName = builders.get(i);
+            if (isStringUUID(claimName)) {
+                claimName = resolvePlayernameFromId(claimName);
+            }
+            accum.append(claimName);
         }
         v = v.replace("%builders%", accum.toString());
         /* Build containers list */
@@ -261,6 +267,10 @@ public class UpdateProcessing {
         v = v.replace("%managers%", accum.toString());
 
         return v;
+    }
+
+    private boolean isStringUUID(final String input){
+        return this.idPattern.matcher(input).matches();
     }
 
     @NotNull
