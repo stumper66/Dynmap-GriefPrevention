@@ -172,6 +172,7 @@ public class UpdateProcessing {
     }
 
     private void addStyle(String owner, AreaMarker m) {
+        if (owner == null) return;
         AreaStyle as = null;
 
         if(!main.ownerstyle.isEmpty()) {
