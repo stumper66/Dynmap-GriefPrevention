@@ -130,6 +130,8 @@ public class UpdateProcessing {
         String wname = l0.getWorld() != null ?
                 l0.getWorld().getName() : "";
         String owner = claim.isAdminClaim() ? ADMIN_ID : claim.getOwnerName();
+        if (owner == null) owner = "unknown";
+
         /* Handle areas */
         if(!isVisible(owner, wname)) return;
 
@@ -219,7 +221,10 @@ public class UpdateProcessing {
         } else {
             v = "<div class=\"regioninfo\">" + main.infowindow + "</div>";
         }
-        v = v.replace("%owner%", claim.isAdminClaim() ? ADMIN_ID : claim.getOwnerName());
+        String ownerName = claim.getOwnerName();
+        if (ownerName == null) ownerName = "";
+
+        v = v.replace("%owner%", claim.isAdminClaim() ? ADMIN_ID : ownerName);
         v = v.replace("%area%", Integer.toString(claim.getArea()));
         ArrayList<String> builders = new ArrayList<>();
         ArrayList<String> containers = new ArrayList<>();
