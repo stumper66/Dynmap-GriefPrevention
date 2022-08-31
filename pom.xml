@@ -5,7 +5,7 @@
 
   <groupId>org.dynmap</groupId>
   <artifactId>Dynmap-GriefPrevention</artifactId>
-  <version>0.87</version>
+  <version>0.88</version>
 
   <build>
     <resources>

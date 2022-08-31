@@ -237,10 +237,8 @@ public class UpdateProcessing {
             if(i > 0) {
                 accum.append(", ");
             }
-            String claimName = builders.get(i);
-            if (isStringUUID(claimName)) {
-                claimName = resolvePlayernameFromId(claimName);
-            }
+            String claimName = resolveClaimName(builders.get(i));
+
             accum.append(claimName);
         }
         v = v.replace("%builders%", accum.toString());
@@ -250,29 +248,35 @@ public class UpdateProcessing {
             if(i > 0) {
                 accum.append(", ");
             }
-            accum.append(containers.get(i));
+            accum.append(resolveClaimName(containers.get(i)));
         }
         v = v.replace("%containers%", accum.toString());
         /* Build accessors list */
-        accum.setLength(1);
+        accum.setLength(0);
         for(int i = 0; i < accessors.size(); i++) {
             if(i > 0) {
                 accum.append(", ");
             }
-            accum.append(accessors.get(i));
+            accum.append(resolveClaimName(accessors.get(i)));
         }
         v = v.replace("%accessors%", accum.toString());
         /* Build managers list */
-        accum.setLength(1);
+        accum.setLength(0);
         for(int i = 0; i < managers.size(); i++) {
             if(i > 0) {
                 accum.append(", ");
             }
-            accum.append(managers.get(i));
+            accum.append(resolveClaimName(managers.get(i)));
         }
         v = v.replace("%managers%", accum.toString());
 
         return v;
+    }
+
+    private String resolveClaimName(final String claimName){
+        return isStringUUID(claimName) ?
+                resolvePlayernameFromId(claimName) :
+                claimName;
     }
 
     private boolean isStringUUID(final String input){
